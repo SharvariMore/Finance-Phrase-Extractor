@@ -1,4 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+import jsPDF from "jspdf";
+import { LuCopy } from "react-icons/lu";
+import { PiExportBold } from "react-icons/pi";
+import { RiFileExcel2Fill } from "react-icons/ri";
+import { FaFile, FaFilePdf } from "react-icons/fa6";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5678";
 
@@ -9,15 +16,86 @@ export default function FinanceExtractor() {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [apiUrl, setApiUrl] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  const dropdownRef = useRef(null);
 
   useEffect(() => {
     setApiUrl(`${API_BASE}/webhook/extract-finance`);
+
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // // Prevent dropdown from closing when clicked inside
+  const stopPropagation = (e) => {
+    e.stopPropagation();
+  };
+
+  /* ------------------------- EXPORT: EXCEL ------------------------- */
+  const downloadExcel = () => {
+    const data = [{ Input_Text: text, Extracted_Phrases: phrases.join(", ") }];
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Extraction");
+
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
+    });
+
+    const blob = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    saveAs(blob, "Finance_Extraction.xlsx");
+  };
+
+  /* --------------------------- EXPORT: PDF -------------------------- */
+  const downloadPDF = () => {
+    const doc = new jsPDF("p", "pt", "a4");
+    const marginLeft = 40;
+    let y = 50;
+
+    doc.setFontSize(18);
+    doc.text("Finance Phrase Extraction Report", marginLeft, y);
+    y += 30;
+
+    doc.setFontSize(14);
+    doc.text("Input Text:", marginLeft, y);
+    y += 20;
+
+    doc.setFontSize(12);
+    const inputLines = doc.splitTextToSize(text, 520);
+    doc.text(inputLines, marginLeft, y);
+    y += inputLines.length * 14 + 20;
+
+    doc.setFontSize(14);
+    doc.text("Extracted Phrases:", marginLeft, y);
+    y += 20;
+
+    doc.setFontSize(12);
+    phrases.forEach((p) => {
+      doc.text(`• ${p}`, marginLeft, y);
+      y += 18;
+    });
+
+    doc.save("Finance_Extraction.pdf");
+  };
+
+  /* ------------------------- EXTRACT PHRASES ------------------------ */
   const extractPhrases = async () => {
     setError("");
     setPhrases([]);
     setCopied(false);
+    setDropdownOpen(false);
 
     if (!text.trim()) {
       setError("Please enter some text before extracting!");
@@ -45,6 +123,7 @@ export default function FinanceExtractor() {
     setLoading(false);
   };
 
+  /* ------------------------- COPY TO CLIPBOARD ---------------------- */
   const copyPhrases = () => {
     if (phrases.length === 0) return;
 
@@ -55,15 +134,62 @@ export default function FinanceExtractor() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto mt-10">
-      {/* Page Title */}
-      <h1 className="text-4xl font-bold text-emerald-700 mb-10 text-center drop-shadow-sm">
-        Finance Phrase Extraction
+    <div className="p-6 max-w-7xl mx-auto">
+      {/* Title */}
+      <h1 className="text-4xl font-bold text-emerald-700 mb-6 text-center drop-shadow-sm">
+        Finance Phrase Extraction Agent
       </h1>
 
-      {/* Side-by-side layout */}
+      {/* EXPORT DROPDOWN */}
+      <div className="flex justify-end mb-6 relative" ref={dropdownRef}>
+        <button
+          onClick={() => setDropdownOpen(!dropdownOpen)}
+          disabled={phrases.length === 0}
+          className={`
+      px-5 py-2 rounded-lg shadow-md transition text-white 
+      ${
+        phrases.length === 0
+          ? "bg-gray-400 cursor-not-allowed font-semibold"
+          : "bg-emerald-700 hover:bg-emerald-800 font-semibold"
+      }
+    `}
+        >
+          Export <PiExportBold className="inline-block ml-2 mb-1" size={20} />
+        </button>
+
+        {dropdownOpen && phrases.length > 0 && (
+          <div
+            className="
+        absolute right-0 top-full mt-2 
+        bg-white shadow-xl rounded-lg border z-50 w-38
+      "
+          >
+            <button
+              onClick={() => {
+                downloadExcel();
+                setDropdownOpen(false);
+              }}
+              className="block w-full text-left px-4 py-2 text-sm font-semibold text-green-900 hover:bg-emerald-50"
+            >
+              Export as Excel <RiFileExcel2Fill className="inline-block ml-2 mb-1" size={16} />
+            </button>
+
+            <button
+              onClick={() => {
+                downloadPDF();
+                setDropdownOpen(false);
+              }}
+              className="block w-full text-left px-4 py-2 text-sm font-semibold text-green-900 hover:bg-emerald-50"
+            >
+              Export as PDF <FaFilePdf className="inline-block ml-2 mb-1" size={16} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* LEFT PANEL — Input */}
+        {/* LEFT PANEL */}
         <div className="bg-white rounded-xl shadow-xl p-8 border-2 border-emerald-600">
           <h2 className="text-2xl font-semibold text-emerald-700 mb-4">
             Input Text:
@@ -87,11 +213,9 @@ export default function FinanceExtractor() {
             onClick={extractPhrases}
             disabled={loading}
             className="
-              mt-5 w-full
-              bg-emerald-700 hover:bg-emerald-800 disabled:bg-emerald-300 
-              text-white font-semibold px-8 py-3 rounded-lg transition-all
-              shadow-md hover:shadow-lg active:scale-[0.98]
-              flex items-center justify-center gap-2
+              mt-5 w-full bg-emerald-700 hover:bg-emerald-800 disabled:bg-emerald-300 
+              text-white font-semibold px-8 py-3 rounded-lg shadow-md
+              hover:shadow-lg active:scale-[0.98] flex items-center justify-center gap-2
             "
           >
             {loading ? (
@@ -105,7 +229,7 @@ export default function FinanceExtractor() {
           </button>
         </div>
 
-        {/* RIGHT PANEL — Results */}
+        {/* RIGHT PANEL */}
         <div className="bg-white rounded-xl shadow-xl p-8 border-2 border-emerald-600">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-semibold text-emerald-700">
@@ -116,9 +240,10 @@ export default function FinanceExtractor() {
               <button
                 onClick={copyPhrases}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white 
-                           px-4 py-2 rounded-md text-sm shadow-md transition"
+                           px-4 py-2 rounded-md text-sm shadow-md transition font-semibold"
               >
                 {copied ? "Copied!" : "Copy"}
+                <LuCopy className="inline-block ml-2 mb-1" size={16} />
               </button>
             )}
           </div>
@@ -126,9 +251,7 @@ export default function FinanceExtractor() {
           {phrases.length > 0 ? (
             <ul className="space-y-3 list-disc list-inside text-gray-800">
               {phrases.map((p, i) => (
-                <li key={i} className="text-gray-800">
-                  {p}
-                </li>
+                <li key={i}>{p}</li>
               ))}
             </ul>
           ) : (
