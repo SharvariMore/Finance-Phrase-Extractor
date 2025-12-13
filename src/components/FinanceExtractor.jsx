@@ -5,7 +5,7 @@ import jsPDF from "jspdf";
 import { LuCopy } from "react-icons/lu";
 import { PiExportBold } from "react-icons/pi";
 import { RiFileExcel2Fill } from "react-icons/ri";
-import { FaFile, FaFilePdf } from "react-icons/fa6";
+import { FaFilePdf } from "react-icons/fa6";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5678";
 
@@ -32,11 +32,6 @@ export default function FinanceExtractor() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  // // Prevent dropdown from closing when clicked inside
-  const stopPropagation = (e) => {
-    e.stopPropagation();
-  };
 
   /* ------------------------- EXPORT: EXCEL ------------------------- */
   const downloadExcel = () => {
