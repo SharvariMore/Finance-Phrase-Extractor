@@ -48,6 +48,7 @@
     "@testing-library/react": "^16.3.1",
     "@testing-library/user-event": "^14.6.1",
     "autoprefixer": "^10.4.22",
+    "cypress": "^15.8.2",
     "fast-text-encoding": "^1.0.6",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.18",
