@@ -136,8 +136,9 @@ export default function FinanceExtractor() {
       </h1>
 
       {/* EXPORT DROPDOWN */}
-      <div className="flex justify-end mb-6 relative" ref={dropdownRef}>
+      <div className="flex justify-end mb-6 relative" ref={dropdownRef} data-testid="export-wrapper">
         <button
+          data-testid="export-btn"
           onClick={() => setDropdownOpen(!dropdownOpen)}
           disabled={phrases.length === 0}
           className={`
@@ -158,6 +159,7 @@ export default function FinanceExtractor() {
         absolute right-0 top-full mt-2 bg-white shadow-xl rounded-lg border z-50 w-38"
           >
             <button
+              data-testid="export-menu"
               onClick={() => {
                 downloadExcel();
                 setDropdownOpen(false);
@@ -168,6 +170,7 @@ export default function FinanceExtractor() {
             </button>
 
             <button
+              data-testid="export-excel"
               onClick={() => {
                 downloadPDF();
                 setDropdownOpen(false);
@@ -189,6 +192,7 @@ export default function FinanceExtractor() {
           </h2>
 
           <textarea
+            data-testid="finance-input"
             className="w-full border-2 border-emerald-200 rounded-lg p-4 text-gray-700 
                        focus:outline-none focus:ring-2 focus:ring-emerald-600
                        placeholder-gray-400 transition-all"
@@ -199,10 +203,11 @@ export default function FinanceExtractor() {
           />
 
           {error && (
-            <p className="text-red-600 text-sm mt-2 font-medium">{error}</p>
+            <p data-testid="error-msg" className="text-red-600 text-sm mt-2 font-medium">{error}</p>
           )}
 
           <button
+            data-testid="extract-btn"
             onClick={extractPhrases}
             disabled={loading}
             className="
@@ -231,6 +236,7 @@ export default function FinanceExtractor() {
 
             {phrases.length > 0 && (
               <button
+                data-testid="copy-btn"
                 onClick={copyPhrases}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white 
                            px-4 py-2 rounded-md text-sm shadow-md transition font-semibold"
@@ -242,13 +248,13 @@ export default function FinanceExtractor() {
           </div>
 
           {phrases.length > 0 ? (
-            <ul className="space-y-3 list-disc list-inside text-gray-800">
+            <ul data-testid="phrases-list" className="space-y-3 list-disc list-inside text-gray-800">
               {phrases.map((p, i) => (
                 <li key={i}>{p}</li>
               ))}
             </ul>
           ) : (
-            <p className="text-gray-500 text-center mt-4">
+            <p data-testid="empty-state" className="text-gray-500 text-center mt-4">
               No Phrases Extracted Yet!
             </p>
           )}
