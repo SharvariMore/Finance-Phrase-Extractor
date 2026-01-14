@@ -29,8 +29,17 @@ export default function FinanceExtractor() {
       }
     }
 
+    function handleEscape(event) {
+      if (event.key === "Escape") setDropdownOpen(false);
+    }
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, []);
 
   /* ------------------------- EXPORT: EXCEL ------------------------- */
@@ -109,7 +118,7 @@ export default function FinanceExtractor() {
       if (!res.ok) throw new Error(`API error: ${res.status}`);
 
       const data = await res.json();
-      setPhrases(data.phrases || []);
+      setPhrases(Array.isArray(data?.phrases) ? data.phrases : []);
     } catch (err) {
       console.error("Extraction error:", err);
       setError("Unable to extract phrases. Please try again.");
@@ -128,6 +137,8 @@ export default function FinanceExtractor() {
     });
   };
 
+  const canExport = phrases.length > 0 && !loading;
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Title */}
@@ -136,48 +147,84 @@ export default function FinanceExtractor() {
       </h1>
 
       {/* EXPORT DROPDOWN */}
-      <div className="flex justify-end mb-6 relative" ref={dropdownRef} data-testid="export-wrapper">
+      <div
+        className="flex justify-end mb-6 relative"
+        ref={dropdownRef}
+        data-testid="export-wrapper"
+      >
         <button
           data-testid="export-btn"
-          onClick={() => setDropdownOpen(!dropdownOpen)}
-          disabled={phrases.length === 0}
+          type="button"
+          aria-label="Open export menu"
+          aria-haspopup="menu"
+          aria-expanded={dropdownOpen}
+          aria-controls="export-menu"
+          onClick={() => setDropdownOpen((v) => !v)}
+          disabled={!canExport}
           className={`
-      px-4 py-2 rounded-lg shadow-md transition text-white text-sm
-      ${
-        phrases.length === 0
-          ? "bg-gray-400 cursor-not-allowed font-semibold"
-          : "bg-emerald-700 hover:bg-emerald-800 font-semibold"
-      }
-    `}
+            px-4 py-2 rounded-lg shadow-md transition text-white text-sm font-semibold
+            ${
+              !canExport
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-emerald-700 hover:bg-emerald-800"
+            }
+          `}
         >
-          Export <PiExportBold className="inline-block ml-2 mb-1" size={20} />
+          Export{" "}
+          <PiExportBold
+            className="inline-block ml-2 mb-1"
+            size={20}
+            aria-hidden="true"
+            focusable="false"
+          />
         </button>
 
-        {dropdownOpen && phrases.length > 0 && (
+        {dropdownOpen && canExport && (
           <div
-            className="
-        absolute right-0 top-full mt-2 bg-white shadow-xl rounded-lg border z-50 w-38"
+            id="export-menu"
+            role="menu"
+            aria-label="Export options"
+            data-testid="export-menu"
+            className="absolute right-0 top-full mt-2 bg-white shadow-xl rounded-lg border z-50 w-44 overflow-hidden"
           >
             <button
-              data-testid="export-menu"
+              data-testid="export-excel"
+              type="button"
+              role="menuitem"
+              aria-label="Export as Excel"
               onClick={() => {
                 downloadExcel();
                 setDropdownOpen(false);
               }}
               className="block w-full text-left px-4 py-2 text-sm font-semibold text-green-900 hover:bg-emerald-50"
             >
-              Export as Excel <RiFileExcel2Fill className="inline-block ml-2 mb-1" size={16} />
+              Export as Excel{" "}
+              <RiFileExcel2Fill
+                className="inline-block ml-2 mb-1"
+                size={16}
+                aria-hidden="true"
+                focusable="false"
+              />
             </button>
 
             <button
-              data-testid="export-excel"
+              data-testid="export-pdf"
+              type="button"
+              role="menuitem"
+              aria-label="Export as PDF"
               onClick={() => {
                 downloadPDF();
                 setDropdownOpen(false);
               }}
               className="block w-full text-left px-4 py-2 text-sm font-semibold text-green-900 hover:bg-emerald-50"
             >
-              Export as PDF <FaFilePdf className="inline-block ml-2 mb-1" size={16} />
+              Export as PDF{" "}
+              <FaFilePdf
+                className="inline-block ml-2 mb-1"
+                size={16}
+                aria-hidden="true"
+                focusable="false"
+              />
             </button>
           </div>
         )}
@@ -193,6 +240,7 @@ export default function FinanceExtractor() {
 
           <textarea
             data-testid="finance-input"
+            aria-label="Financial input text"
             className="w-full border-2 border-emerald-200 rounded-lg p-4 text-gray-700 
                        focus:outline-none focus:ring-2 focus:ring-emerald-600
                        placeholder-gray-400 transition-all"
@@ -203,11 +251,19 @@ export default function FinanceExtractor() {
           />
 
           {error && (
-            <p data-testid="error-msg" className="text-red-600 text-sm mt-2 font-medium">{error}</p>
+            <p
+              data-testid="error-msg"
+              role="alert"
+              className="text-red-600 text-sm mt-2 font-medium"
+            >
+              {error}
+            </p>
           )}
 
           <button
             data-testid="extract-btn"
+            type="button"
+            aria-label="Extract financial phrases"
             onClick={extractPhrases}
             disabled={loading}
             className="
@@ -218,7 +274,10 @@ export default function FinanceExtractor() {
           >
             {loading ? (
               <>
-                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                <div
+                  className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"
+                  aria-hidden="true"
+                ></div>
                 Extracting...
               </>
             ) : (
@@ -237,24 +296,38 @@ export default function FinanceExtractor() {
             {phrases.length > 0 && (
               <button
                 data-testid="copy-btn"
+                type="button"
+                aria-label="Copy extracted phrases"
                 onClick={copyPhrases}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white 
                            px-4 py-2 rounded-md text-sm shadow-md transition font-semibold"
               >
-                {copied ? "Copied!" : "Copy"}
-                <LuCopy className="inline-block ml-2 mb-1" size={16} />
+                {copied ? "Copied!" : "Copy"}{" "}
+                <LuCopy
+                  className="inline-block ml-2 mb-1"
+                  size={16}
+                  aria-hidden="true"
+                  focusable="false"
+                />
               </button>
             )}
           </div>
 
           {phrases.length > 0 ? (
-            <ul data-testid="phrases-list" className="space-y-3 list-disc list-inside text-gray-800">
+            <ul
+              data-testid="phrases-list"
+              aria-label="Extracted phrases list"
+              className="space-y-3 list-disc list-inside text-gray-800"
+            >
               {phrases.map((p, i) => (
                 <li key={i}>{p}</li>
               ))}
             </ul>
           ) : (
-            <p data-testid="empty-state" className="text-gray-500 text-center mt-4">
+            <p
+              data-testid="empty-state"
+              className="text-gray-500 text-center mt-4"
+            >
               No Phrases Extracted Yet!
             </p>
           )}

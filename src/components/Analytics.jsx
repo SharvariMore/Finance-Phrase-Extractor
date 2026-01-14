@@ -25,26 +25,68 @@ export default function Analytics() {
   const [history, setHistory] = useState([]);
   const [dateRange, setDateRange] = useState(30);
   const [exportOpen, setExportOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const analyticsRef = useRef(null);
   const exportRef = useRef(null);
 
+  const exportMenuId = "analytics-export-menu";
+
   /* ---------------- Fetch Data ---------------- */
   useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+
     fetch(`${API_BASE}/webhook/get-finance-history`)
       .then((res) => res.json())
-      .then((data) => setHistory(Array.isArray(data) ? data : data.data || []));
+      .then((data) => {
+        if (!mounted) return;
+
+        const rows = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.data)
+          ? data.data
+          : [];
+
+        // Normalize phrases -> always array
+        const normalized = rows.map((r) => ({
+          ...r,
+          phrases: Array.isArray(r?.phrases) ? r.phrases : [],
+        }));
+
+        setHistory(normalized);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setHistory([]);
+      })
+      .finally(() => {
+        if (!mounted) return;
+        setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  /* ---------------- Close Export Dropdown on Outside Click ---------------- */
+  /* ---------------- Close Export Dropdown (outside + Escape) ---------------- */
   useEffect(() => {
-    const handler = (e) => {
+    const handleOutside = (e) => {
       if (exportRef.current && !exportRef.current.contains(e.target)) {
         setExportOpen(false);
       }
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    const handleEscape = (e) => {
+      if (e.key === "Escape") setExportOpen(false);
+    };
+
+    document.addEventListener("mousedown", handleOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, []);
 
   /* ---------------- Date Filter ---------------- */
@@ -63,26 +105,35 @@ export default function Analytics() {
   const phraseFrequency = useMemo(() => {
     const freq = {};
     filteredHistory.forEach((item) => {
-      item.phrases.forEach((p) => {
-        freq[p] = (freq[p] || 0) + 1;
+      (Array.isArray(item.phrases) ? item.phrases : []).forEach((p) => {
+        const key = String(p);
+        freq[key] = (freq[key] || 0) + 1;
       });
     });
     return freq;
   }, [filteredHistory]);
 
-  const topPhrases = Object.entries(phraseFrequency)
-    .map(([phrase, count]) => ({ phrase, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 10);
+  const topPhrases = useMemo(() => {
+    return Object.entries(phraseFrequency)
+      .map(([phrase, count]) => ({ phrase, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+  }, [phraseFrequency]);
 
   /* ---------------- Usage Over Time ---------------- */
   const usageByDate = useMemo(() => {
     const map = {};
     filteredHistory.forEach((item) => {
-      const date = new Date(item.created_at).toLocaleDateString();
+      const d = new Date(item.created_at);
+      if (isNaN(d)) return;
+      const date = d.toLocaleDateString();
       map[date] = (map[date] || 0) + 1;
     });
-    return Object.entries(map).map(([date, count]) => ({ date, count }));
+
+    // stable ordering for chart
+    return Object.entries(map)
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
   }, [filteredHistory]);
 
   /* ---------------- KPIs ---------------- */
@@ -90,9 +141,11 @@ export default function Analytics() {
   const uniquePhrases = Object.keys(phraseFrequency).length;
   const topPhrase = topPhrases[0]?.phrase || "—";
 
+  const canExport = filteredHistory.length > 0 && !loading;
+
   /* ---------------- Export PDF ---------------- */
   const exportPDF = async () => {
-    if (!analyticsRef.current) return;
+    if (!analyticsRef.current || !canExport) return;
 
     const pdf = new jsPDF("p", "pt", "a4");
     pdf.setFontSize(20);
@@ -102,7 +155,9 @@ export default function Analytics() {
     pdf.text(`Date Range: Last ${dateRange} days`, 40, 70);
     pdf.text(`Total Extractions: ${totalExtractions}`, 40, 90);
     pdf.text(`Unique Phrases: ${uniquePhrases}`, 40, 110);
-    pdf.text(`Top Phrase: ${topPhrase}`, 40, 130);
+
+    const topPhraseLine = pdf.splitTextToSize(`Top Phrase: ${topPhrase}`, 520);
+    pdf.text(topPhraseLine, 40, 130);
 
     const canvas = await html2canvas(analyticsRef.current, {
       scale: 2,
@@ -122,7 +177,7 @@ export default function Analytics() {
 
   /* ---------------- Export Excel ---------------- */
   const exportExcel = () => {
-    if (filteredHistory.length === 0) return;
+    if (!canExport) return;
 
     const summarySheet = XLSX.utils.json_to_sheet([
       {
@@ -153,8 +208,15 @@ export default function Analytics() {
     setExportOpen(false);
   };
 
+  /* ---------------- Axis tick helper ---------------- */
+  const formatPhraseTick = (value, index) => {
+    if (index % 2 !== 0) return "";
+    const s = String(value || "");
+    return s.length > 10 ? `${s.slice(0, 10)}…` : s;
+  };
+
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 max-w-7xl mx-auto" data-testid="analytics-page">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
         <h1 className="text-3xl font-bold text-emerald-700">
@@ -162,7 +224,12 @@ export default function Analytics() {
         </h1>
 
         <div className="flex items-center gap-3 mt-4 md:mt-0">
+          <label className="sr-only" htmlFor="dateRangeSelect">
+            Date range
+          </label>
           <select
+            id="dateRangeSelect"
+            data-testid="date-range"
             value={dateRange}
             onChange={(e) => setDateRange(Number(e.target.value))}
             className="border border-emerald-300 rounded-md px-3 py-2 text-sm cursor-pointer"
@@ -175,39 +242,67 @@ export default function Analytics() {
           {/* Export Dropdown */}
           <div className="flex justify-end relative" ref={exportRef}>
             <button
-              disabled={filteredHistory.length === 0}
+              data-testid="export-btn"
+              type="button"
+              disabled={!canExport}
               onClick={() => setExportOpen((o) => !o)}
+              aria-label="Export analytics report"
+              aria-haspopup="menu"
+              aria-expanded={exportOpen}
+              aria-controls={exportMenuId}
               className={`gap-2 px-4 py-2 rounded-lg text-white transition font-semibold text-sm
                 ${
-                  filteredHistory.length === 0
+                  !canExport
                     ? "bg-gray-400 cursor-not-allowed"
                     : "bg-emerald-700 hover:bg-emerald-800"
                 }`}
             >
               Export{" "}
-              <PiExportBold className="inline-block ml-2 mb-1" size={19} />
+              <PiExportBold
+                aria-hidden="true"
+                className="inline-block ml-2 mb-1"
+                size={19}
+              />
             </button>
 
-            {exportOpen && (
+            {exportOpen && canExport && (
               <div
-                className="absolute right-0 top-full mt-2 bg-white shadow-xl rounded-lg border z-50 w-40"
+                id={exportMenuId}
+                role="menu"
+                aria-label="Export menu"
+                data-testid="export-menu"
+                className="absolute right-0 top-full mt-2 bg-white shadow-xl rounded-lg border z-50 w-44 overflow-hidden"
               >
                 <button
+                  data-testid="export-excel"
+                  type="button"
+                  role="menuitem"
+                  aria-label="Export analytics as Excel"
                   onClick={exportExcel}
                   className="block w-full text-left px-4 py-2 text-sm font-semibold text-green-900 hover:bg-emerald-50"
                 >
                   Export Excel{" "}
                   <RiFileExcel2Fill
+                    aria-hidden="true"
                     className="inline-block ml-2 mb-1"
                     size={16}
                   />
                 </button>
+
                 <button
+                  data-testid="export-pdf"
+                  type="button"
+                  role="menuitem"
+                  aria-label="Export analytics as PDF"
                   onClick={exportPDF}
                   className="block w-full text-left px-4 py-2 text-sm font-semibold text-green-900 hover:bg-emerald-50"
                 >
                   Export PDF{" "}
-                  <FaFilePdf className="inline-block ml-2 mb-1" size={16} />
+                  <FaFilePdf
+                    aria-hidden="true"
+                    className="inline-block ml-2 mb-1"
+                    size={16}
+                  />
                 </button>
               </div>
             )}
@@ -218,29 +313,32 @@ export default function Analytics() {
       {/* Exportable Area */}
       <div ref={analyticsRef}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-          <KpiCard title="Total Extractions" value={totalExtractions} />
-          <KpiCard title="Unique Phrases" value={uniquePhrases} />
-          <KpiCard title="Top Phrase" value={topPhrase} />
+          <KpiCard
+            title="Total Extractions"
+            value={totalExtractions}
+            testId="kpi-total"
+          />
+          <KpiCard
+            title="Unique Phrases"
+            value={uniquePhrases}
+            testId="kpi-unique"
+          />
+          <KpiCard title="Top Phrase" value={topPhrase} testId="kpi-top" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-          <ChartCard title="Top Phrase Frequency">
+          <ChartCard title="Top Phrase Frequency" testId="chart-frequency">
             <ResponsiveContainer width="100%" height={340}>
               <BarChart
                 data={topPhrases}
-                margin={{ top: 20, right: 20, left: 30, bottom: 30 }}
+                margin={{ top: 20, right: 20, left: 20, bottom: 35 }}
               >
                 <XAxis
                   dataKey="phrase"
-                  tick={false}
-                  angle={-30}
-                  textAnchor="end"
-                  interval={1}
-                  label={{
-                    value: "Financial Phrases",
-                    position: "bottom",
-                    offset: 10,
-                  }}
+                  interval={0}
+                  tickFormatter={formatPhraseTick}
+                  tick={{ fontSize: 11 }}
+                  tickLine={false}
                 />
                 <YAxis
                   allowDecimals={false}
@@ -248,11 +346,14 @@ export default function Analytics() {
                     value: "Frequency",
                     angle: -90,
                     position: "insideLeft",
-                    offset: -10,
+                    offset: -5,
                   }}
                 />
-                <Tooltip formatter={(value) => [`${value}`, "Occurrences"]} />
-                <Legend verticalAlign="top" height={36} />
+                <Tooltip
+                  formatter={(value) => [`${value}`, "Occurrences"]}
+                  labelFormatter={(label) => `Phrase: ${label}`}
+                />
+                <Legend verticalAlign="top" height={28} />
                 <Bar
                   dataKey="count"
                   name="Phrase Frequency"
@@ -261,46 +362,55 @@ export default function Analytics() {
                 />
               </BarChart>
             </ResponsiveContainer>
+
+            <p className="text-xs text-gray-500 mt-3">
+              Note: X-axis shows every other phrase label for readability. Hover
+              bars to see full phrase.
+            </p>
           </ChartCard>
 
-          <ChartCard title="Extraction Activity Over Time">
+          <ChartCard title="Extraction Activity Over Time" testId="chart-trend">
             <ResponsiveContainer width="100%" height={340}>
               <LineChart
                 data={usageByDate}
-                margin={{ top: 20, right: 20, left: 30, bottom: 40 }}
+                margin={{ top: 20, right: 20, left: 20, bottom: 35 }}
               >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="date"
-                  label={{
-                    value: "Date",
-                    position: "bottom",
-                    offset: 20,
-                  }}
-                />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                 <YAxis
                   allowDecimals={false}
                   label={{
-                    value: "Number of Extractions",
+                    value: "Extractions",
                     angle: -90,
                     position: "insideLeft",
-                    offset: -10,
+                    offset: -5,
                   }}
                 />
                 <Tooltip formatter={(value) => [`${value}`, "Extractions"]} />
-                <Legend verticalAlign="top" height={36} />
+                <Legend verticalAlign="top" height={28} />
                 <Line
                   type="monotone"
                   dataKey="count"
                   name="Extractions Over Time"
                   stroke="#059669"
                   strokeWidth={3}
-                  dot={{ r: 5 }}
+                  dot={{ r: 4 }}
                 />
               </LineChart>
             </ResponsiveContainer>
           </ChartCard>
         </div>
+
+        {loading && (
+          <p
+            data-testid="loading"
+            className="text-sm text-gray-500 mt-6"
+            role="status"
+            aria-live="polite"
+          >
+            Loading analytics...
+          </p>
+        )}
       </div>
     </div>
   );
@@ -308,18 +418,24 @@ export default function Analytics() {
 
 /* ---------------- Reusable UI ---------------- */
 
-function KpiCard({ title, value }) {
+function KpiCard({ title, value, testId }) {
   return (
-    <div className="bg-emerald-600 shadow-lg rounded-xl p-6 border border-emerald-200">
+    <div
+      data-testid={testId}
+      className="bg-emerald-600 shadow-lg rounded-xl p-6 border border-emerald-200"
+    >
       <p className="text-sm text-white mb-1">{title}</p>
       <p className="text-3xl font-bold text-white">{value}</p>
     </div>
   );
 }
 
-function ChartCard({ title, children }) {
+function ChartCard({ title, children, testId }) {
   return (
-    <div className="bg-white shadow-xl rounded-xl p-6 border-2 border-emerald-500">
+    <div
+      data-testid={testId}
+      className="bg-white shadow-xl rounded-xl p-6 border-2 border-emerald-500"
+    >
       <h2 className="text-xl font-semibold text-emerald-700 mb-4">{title}</h2>
       {children}
     </div>
