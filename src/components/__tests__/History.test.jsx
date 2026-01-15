@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import History from "../History";
 
 describe("History", () => {
@@ -22,11 +22,13 @@ describe("History", () => {
 
     render(<History />);
 
-    await waitFor(() => {
-      expect(screen.getByText(/eps grew 15%/i)).toBeInTheDocument();
-      expect(screen.getByText("EPS")).toBeInTheDocument();
-      expect(screen.getByText("15%")).toBeInTheDocument();
-    });
+    // ✅ single async wait signal
+    const inputTextCell = await screen.findByText(/eps grew 15%/i);
+    expect(inputTextCell).toBeInTheDocument();
+
+    // ✅ assertions outside async wait
+    expect(screen.getByText("EPS")).toBeInTheDocument();
+    expect(screen.getByText("15%")).toBeInTheDocument();
   });
 
   test("handles unexpected API response gracefully", async () => {
@@ -37,8 +39,8 @@ describe("History", () => {
 
     render(<History />);
 
-    await waitFor(() => {
-      expect(screen.getByText(/no matching records/i)).toBeInTheDocument();
-    });
+    // ✅ single async wait signal
+    const emptyRowText = await screen.findByText(/no matching records found/i);
+    expect(emptyRowText).toBeInTheDocument();
   });
 });

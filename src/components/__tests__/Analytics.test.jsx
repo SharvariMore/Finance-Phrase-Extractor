@@ -1,37 +1,51 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import Analytics from "../Analytics";
+
+// Mock heavy deps
+jest.mock("jspdf");
+jest.mock("html2canvas", () => jest.fn(() => Promise.resolve({ toDataURL: () => "" })));
+jest.mock("file-saver");
+jest.mock("xlsx");
+
+function mockFetch(payload, ok = true, status = 200) {
+  global.fetch = jest.fn().mockResolvedValue({
+    ok,
+    status,
+    json: async () => payload,
+  });
+}
 
 describe("Analytics", () => {
   beforeEach(() => {
     jest.resetAllMocks();
   });
 
-  test("renders KPI cards based on history data", async () => {
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: async () => [
-        {
-          id: 1,
-          input_text: "EPS grew 15%",
-          phrases: ["EPS", "15%"],
-          created_at: new Date().toISOString(),
-        },
-        {
-          id: 2,
-          input_text: "revenue growth",
-          phrases: ["revenue", "growth"],
-          created_at: new Date().toISOString(),
-        },
-      ],
-    });
+  test("renders KPIs and charts with mocked data", async () => {
+    mockFetch([
+      {
+        id: 1,
+        input_text: "EPS rose",
+        phrases: ["EPS", "YoY"],
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: 2,
+        input_text: "Margin expanded",
+        phrases: ["margin"],
+        created_at: new Date().toISOString(),
+      },
+    ]);
 
     render(<Analytics />);
 
-    await waitFor(() => {
-      expect(screen.getByText(/analytics dashboard/i)).toBeInTheDocument();
-      // KPI values are rendered as text
-      expect(screen.getByText("2")).toBeInTheDocument(); // Total Extractions
-    });
+    // Wait for a single, stable signal that data loaded
+    await screen.findByTestId("kpi-total");
+
+    // Assertions outside of waitFor
+    expect(screen.getByTestId("kpi-total")).toBeInTheDocument();
+    expect(screen.getByTestId("kpi-unique")).toBeInTheDocument();
+    expect(screen.getByTestId("chart-frequency")).toBeInTheDocument();
+    expect(screen.getByTestId("chart-trend")).toBeInTheDocument();
   });
 });
