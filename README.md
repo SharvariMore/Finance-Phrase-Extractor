@@ -28,3 +28,7 @@ AI-powered finance phrase extraction pipeline with n8n workflow automation, Gemi
 <img width="1900" height="955" alt="image" src="https://github.com/user-attachments/assets/7f56ab78-f3e8-46d3-ada8-8490c95f5eb5" />
 
 
+
+
+
+

@@ -4,7 +4,9 @@ import Analytics from "../Analytics";
 
 // Mock heavy deps
 jest.mock("jspdf");
-jest.mock("html2canvas", () => jest.fn(() => Promise.resolve({ toDataURL: () => "" })));
+jest.mock("html2canvas", () =>
+  jest.fn(() => Promise.resolve({ toDataURL: () => "" }))
+);
 jest.mock("file-saver");
 jest.mock("xlsx");
 

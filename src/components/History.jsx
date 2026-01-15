@@ -240,7 +240,7 @@ export default function History() {
 
       {/* EXPORT DROPDOWN */}
       <div
-        className="flex justify-end mb-6 relative"
+        className="w-full sm:w-auto flex justify-end mb-6 relative"
         ref={dropdownRef}
         data-testid="history-export-wrapper"
       >
@@ -254,7 +254,7 @@ export default function History() {
           aria-expanded={dropdownOpen}
           aria-controls={exportMenuId}
           className={`
-            px-4 py-2 rounded-lg shadow-md transition text-white text-sm font-semibold
+            w-full sm:w-auto px-4 py-2 rounded-lg shadow-md transition text-white text-sm font-semibold
             ${
               !canExport
                 ? "bg-gray-400 cursor-not-allowed"
@@ -276,7 +276,7 @@ export default function History() {
             role="menu"
             aria-label="Export menu"
             data-testid="history-export-menu"
-            className="absolute right-0 top-full mt-2 bg-white shadow-xl rounded-lg border z-50 w-44 overflow-hidden"
+            className="absolute right-0 top-full mt-2 bg-white shadow-xl rounded-lg border z-50 w-full sm:w-44 overflow-hidden"
           >
             <button
               data-testid="history-export-excel"
@@ -322,7 +322,7 @@ export default function History() {
       {/* Responsive Table */}
       <div className="overflow-x-auto rounded-lg shadow-lg border border-emerald-500">
         <table
-          className="min-w-full text-sm bg-white"
+          className="min-w-[900px] w-full text-sm bg-white"
           data-testid="history-table"
         >
           <thead className="bg-emerald-700 text-white">

@@ -216,31 +216,34 @@ export default function Analytics() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto" data-testid="analytics-page">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto" data-testid="analytics-page">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-        <h1 className="text-3xl font-bold text-emerald-700">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-emerald-700">
           Analytics Dashboard
         </h1>
 
-        <div className="flex items-center gap-3 mt-4 md:mt-0">
-          <label className="sr-only" htmlFor="dateRangeSelect">
-            Date range
-          </label>
-          <select
-            id="dateRangeSelect"
-            data-testid="date-range"
-            value={dateRange}
-            onChange={(e) => setDateRange(Number(e.target.value))}
-            className="border border-emerald-300 rounded-md px-3 py-2 text-sm cursor-pointer"
-          >
-            <option value={7}>Last 7 days</option>
-            <option value={30}>Last 30 days</option>
-            <option value={90}>Last 90 days</option>
-          </select>
+        {/* Controls */}
+        <div className="w-full sm:w-auto flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="w-full sm:w-auto">
+            <label className="sr-only" htmlFor="dateRangeSelect">
+              Date range
+            </label>
+            <select
+              id="dateRangeSelect"
+              data-testid="date-range"
+              value={dateRange}
+              onChange={(e) => setDateRange(Number(e.target.value))}
+              className="w-full sm:w-auto border border-emerald-300 rounded-md px-3 py-2 text-sm cursor-pointer"
+            >
+              <option value={7}>Last 7 days</option>
+              <option value={30}>Last 30 days</option>
+              <option value={90}>Last 90 days</option>
+            </select>
+          </div>
 
           {/* Export Dropdown */}
-          <div className="flex justify-end relative" ref={exportRef}>
+          <div className="w-full sm:w-auto relative" ref={exportRef}>
             <button
               data-testid="export-btn"
               type="button"
@@ -250,12 +253,12 @@ export default function Analytics() {
               aria-haspopup="menu"
               aria-expanded={exportOpen}
               aria-controls={exportMenuId}
-              className={`gap-2 px-4 py-2 rounded-lg text-white transition font-semibold text-sm
-                ${
-                  !canExport
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-emerald-700 hover:bg-emerald-800"
-                }`}
+              className={`w-full sm:w-auto px-4 py-2 rounded-lg text-white transition font-semibold text-sm
+              ${
+                !canExport
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-emerald-700 hover:bg-emerald-800"
+              }`}
             >
               Export{" "}
               <PiExportBold
@@ -271,7 +274,10 @@ export default function Analytics() {
                 role="menu"
                 aria-label="Export menu"
                 data-testid="export-menu"
-                className="absolute right-0 top-full mt-2 bg-white shadow-xl rounded-lg border z-50 w-44 overflow-hidden"
+                className="
+                absolute right-0 top-full mt-2 bg-white shadow-xl rounded-lg border z-50
+                w-full sm:w-44 overflow-hidden
+              "
               >
                 <button
                   data-testid="export-excel"
@@ -312,7 +318,8 @@ export default function Analytics() {
 
       {/* Exportable Area */}
       <div ref={analyticsRef}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        {/* KPIs */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8 sm:mb-10">
           <KpiCard
             title="Total Extractions"
             value={totalExtractions}
@@ -326,42 +333,48 @@ export default function Analytics() {
           <KpiCard title="Top Phrase" value={topPhrase} testId="kpi-top" />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+        {/* Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-10">
           <ChartCard title="Top Phrase Frequency" testId="chart-frequency">
-            <ResponsiveContainer width="100%" height={340}>
-              <BarChart
-                data={topPhrases}
-                margin={{ top: 20, right: 20, left: 20, bottom: 35 }}
-              >
-                <XAxis
-                  dataKey="phrase"
-                  interval={0}
-                  tickFormatter={formatPhraseTick}
-                  tick={{ fontSize: 11 }}
-                  tickLine={false}
-                />
-                <YAxis
-                  allowDecimals={false}
-                  label={{
-                    value: "Frequency",
-                    angle: -90,
-                    position: "insideLeft",
-                    offset: -5,
-                  }}
-                />
-                <Tooltip
-                  formatter={(value) => [`${value}`, "Occurrences"]}
-                  labelFormatter={(label) => `Phrase: ${label}`}
-                />
-                <Legend verticalAlign="top" height={28} />
-                <Bar
-                  dataKey="count"
-                  name="Phrase Frequency"
-                  fill="#059669"
-                  radius={[6, 6, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="w-full overflow-x-auto">
+              <div className="min-w-[340px]">
+                <ResponsiveContainer width="100%" height={320}>
+                  <BarChart
+                    data={topPhrases}
+                    margin={{ top: 16, right: 12, left: 8, bottom: 28 }}
+                  >
+                    <XAxis
+                      dataKey="phrase"
+                      interval={0}
+                      tickFormatter={formatPhraseTick}
+                      tick={{ fontSize: 10 }}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      tick={{ fontSize: 10 }}
+                      label={{
+                        value: "Frequency",
+                        angle: -90,
+                        position: "insideLeft",
+                        offset: -2,
+                      }}
+                    />
+                    <Tooltip
+                      formatter={(value) => [`${value}`, "Occurrences"]}
+                      labelFormatter={(label) => `Phrase: ${label}`}
+                    />
+                    <Legend verticalAlign="top" height={24} />
+                    <Bar
+                      dataKey="count"
+                      name="Phrase Frequency"
+                      fill="#059669"
+                      radius={[6, 6, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
 
             <p className="text-xs text-gray-500 mt-3">
               Note: X-axis shows every other phrase label for readability. Hover
@@ -370,34 +383,41 @@ export default function Analytics() {
           </ChartCard>
 
           <ChartCard title="Extraction Activity Over Time" testId="chart-trend">
-            <ResponsiveContainer width="100%" height={340}>
-              <LineChart
-                data={usageByDate}
-                margin={{ top: 20, right: 20, left: 20, bottom: 35 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                <YAxis
-                  allowDecimals={false}
-                  label={{
-                    value: "Extractions",
-                    angle: -90,
-                    position: "insideLeft",
-                    offset: -5,
-                  }}
-                />
-                <Tooltip formatter={(value) => [`${value}`, "Extractions"]} />
-                <Legend verticalAlign="top" height={28} />
-                <Line
-                  type="monotone"
-                  dataKey="count"
-                  name="Extractions Over Time"
-                  stroke="#059669"
-                  strokeWidth={3}
-                  dot={{ r: 4 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <div className="w-full overflow-x-auto">
+              <div className="min-w-[340px]">
+                <ResponsiveContainer width="100%" height={320}>
+                  <LineChart
+                    data={usageByDate}
+                    margin={{ top: 16, right: 12, left: 8, bottom: 28 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                    <YAxis
+                      allowDecimals={false}
+                      tick={{ fontSize: 10 }}
+                      label={{
+                        value: "Extractions",
+                        angle: -90,
+                        position: "insideLeft",
+                        offset: -2,
+                      }}
+                    />
+                    <Tooltip
+                      formatter={(value) => [`${value}`, "Extractions"]}
+                    />
+                    <Legend verticalAlign="top" height={24} />
+                    <Line
+                      type="monotone"
+                      dataKey="count"
+                      name="Extractions Over Time"
+                      stroke="#059669"
+                      strokeWidth={3}
+                      dot={{ r: 3 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           </ChartCard>
         </div>
 
@@ -434,9 +454,11 @@ function ChartCard({ title, children, testId }) {
   return (
     <div
       data-testid={testId}
-      className="bg-white shadow-xl rounded-xl p-6 border-2 border-emerald-500"
+      className="bg-white shadow-xl rounded-xl p-4 sm:p-6 border-2 border-emerald-500"
     >
-      <h2 className="text-xl font-semibold text-emerald-700 mb-4">{title}</h2>
+      <h2 className="text-lg sm:text-xl font-semibold text-emerald-700 mb-3 sm:mb-4">
+        {title}
+      </h2>
       {children}
     </div>
   );
